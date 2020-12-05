@@ -1,0 +1,109 @@
+---
+title: "explore"
+author: "Jin Chen"
+date: "11/26/2020"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(rvest)
+library(stringr)
+library(pdftools) #to extract text
+library(tidytext) #working with text
+```
+
+
+```{r}
+
+system("phantomjs public_fetch.js")
+
+#Years 1998 - 2020
+page <- read_html("1.html")
+
+page %>%
+  html_nodes(css = "a") %>%       # find all links
+  html_attr("href") %>%           # get the url
+  str_subset("\\.pdf")            # find those that end in pdf
+
+
+page %>%
+  html_nodes(css = "a") %>%       # find all links
+  html_attr("href") %>%     # get the url
+  str_subset("\\.pdf|\\.PDF") %>% # find those that end in pdf
+  str_subset("Shareholder|shareholder|Letter|letter|2006.PDF|ltr2")
+
+
+
+```
+
+
+
+
+```{r}
+my_urls <- page %>%
+  html_nodes(css = "a") %>%       # find all links
+  html_attr("href") %>%     # get the url
+  str_subset("\\.pdf|\\.PDF") %>% # find those that end in pdf
+  str_subset("Shareholder|shareholder|Letter|letter|2006.PDF|ltr2")
+
+save_here <- paste0("../documents/", "shareholderletter_", 2019:1997, ".pdf")
+
+for(i in seq_along(my_urls)){
+  download.file(my_urls[i], save_here[i], mode = "wb")
+}
+
+```
+
+
+```{r}
+shletter2019 <- pdf_text("../documents/shareholderletter_2019.pdf") %>% 
+  readr::read_lines()
+
+shletter2019
+
+#issue1 - each letter has the 1997 letters attached
+sh19 <- shletter2019[1:205]
+
+```
+```{r}
+
+sh19_df <- tibble(line = 1:205, text = sh19)
+
+sh19_tidy <- sh19_df %>% 
+  unnest_tokens(word, text) %>% #tokenization 
+  anti_join(stop_words)         #remove stop words
+
+sh19_tidy %>% 
+  count(word, sort = TRUE) %>% 
+  filter(n >= 10) %>% 
+  mutate(word = reorder(word, n)) %>% 
+  ggplot(aes(n, word)) +
+  geom_col() +
+  labs(y = NULL)
+  
+
+```
+
+
+My links
+
+Idea
+https://michaeltoth.me/sentiment-analysis-of-warren-buffetts-letters-to-shareholders.html
+https://github.com/michaeltoth/michaeltoth/blob/master/content/_R/berkshire_hathaway_sentiment.Rmd
+
+Viz
+https://cinc.rud.is/web/packages/hrbrthemes/
+
+String for multiple patterns
+https://stackoverflow.com/questions/31517121/using-r-to-scrape-the-link-address-of-a-downloadable-file-from-a-web-page
+
+My project
+https://ir.aboutamazon.com/annual-reports-proxies-and-shareholder-letters/default.aspx
+
+Scrapping javascript page
+https://www.johngoldin.com/2018/07/scraping_javascript/
+http://flovv.github.io/Scrape-JS-Sites/
+
+Download PDF
+https://stackoverflow.com/questions/46532362/scraping-online-pdfs-with-rvest
